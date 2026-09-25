@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BP Local Monitor — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface: #161920;
+    --border: #252830;
+    --text: #e6e8ee;
+    --muted: #8b8f9a;
+    --accent: #60a5fa;
+    --sys: #f87171;
+    --dia: #34d399;
+    --pulse: #a78bfa;
+    --ok: #2ecc71;
+    --warn: #f1c40f;
+    --danger: #e74c3c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 12px;
+  }
+  header h1 { font-size: 18px; font-weight: 600; margin: 0; }
+  header .subtitle { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  header .meta { text-align: right; color: var(--muted); font-size: 12px; }
+  main { padding: 24px 32px; max-width: 1200px; }
+  .toolbar {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px;
+    font-family: inherit;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .file-input { display: none; }
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px; margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .stat-value { font-size: 22px; font-weight: 700; margin-top: 6px; }
+  .stat-value.sys { color: var(--sys); }
+  .stat-value.dia { color: var(--dia); }
+  .stat-value.pulse { color: var(--pulse); }
+  .chart-wrap { margin: 24px 0; }
+  .chart-wrap h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+  canvas { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 100%; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  tr:hover td { background: var(--surface); }
+  .cls-badge { border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; display: inline-block; }
+  .notes { color: var(--muted); font-style: italic; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .insights { margin-top: 24px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .insights h3 { margin: 0 0 8px; font-size: 13px; color: var(--accent); }
+  .insights ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+  .insights li { margin: 4px 0; }
+  .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+  .empty { color: var(--muted); padding: 24px; text-align: center; }
+  .badge-ok { background: rgba(46,204,113,.15); color: var(--ok); }
+  .badge-warn { background: rgba(241,196,15,.15); color: var(--warn); }
+  .badge-danger { background: rgba(231,76,60,.15); color: var(--danger); }
+  .badge-info { background: rgba(52,211,153,.15); color: var(--dia); }
+  .distribution { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .dist-chip { padding: 4px 10px; border-radius: 6px; font-size: 12px; background: var(--surface); border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BP Local Monitor</h1>
+    <div class="subtitle">No cloud · No login · All data stays on this machine</div>
+  </div>
+  <div class="meta">
+    <div id="data-source">Loading…</div>
+    <div id="generated-at" style="margin-top:4px;"></div>
+  </div>
+</header>
+<main>
+  <div class="toolbar">
+    <label class="btn" for="jsonl-input">Load JSONL</label>
+    <input id="jsonl-input" class="file-input" type="file" accept=".jsonl,.json,.csv">
+    <button class="btn" id="demo-btn">Show Demo Data</button>
+    <span id="record-count" style="color:var(--muted); font-size:12px; margin-left:auto;"></span>
+  </div>
+
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="stat-label">Mean Systolic</div><div class="stat-value sys" id="mean-sys">—</div></div>
+    <div class="stat-card"><div class="stat-label">Mean Diastolic</div><div class="stat-value dia" id="mean-dia">—</div></div>
+    <div class="stat-card"><div class="stat-label">Mean Pulse</div><div class="stat-value pulse" id="mean-pulse">—</div></div>
+    <div class="stat-card"><div class="stat-label">Std Dev S / D</div><div class="stat-value" id="std-sd">—</div></div>
+    <div class="stat-card"><div class="stat-label">Samples</div><div class="stat-value" id="samples">0</div></div>
+    <div class="stat-card"><div class="stat-label">Pattern</div><div class="stat-value" style="font-size:14px;" id="pattern">—</div></div>
+  </div>
+
+  <div class="chart-wrap">
+    <h2>Blood Pressure Trend</h2>
+    <canvas id="trend-chart" height="280"></canvas>
+  </div>
+
+  <div class="chart-wrap">
+    <h2>Classification Distribution</h2>
+    <canvas id="dist-chart" height="180"></canvas>
+  </div>
+
+  <h2 style="font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;">Recent Readings</h2>
+  <div id="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Systolic</th>
+          <th>Diastolic</th>
+          <th>Pulse</th>
+          <th>Classification</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody id="readings-body"></tbody>
+    </table>
+    <div class="empty" id="empty-msg">No readings loaded. Use <strong>Load JSONL</strong> or <strong>Demo Data</strong> to begin.</div>
+  </div>
+
+  <div class="insights" id="insights-box" style="display:none;">
+    <h3>Pattern Insights</h3>
+    <ul id="insights-list"></ul>
+  </div>
+
+  <div class="footer">
+    bp-local-monitor — standalone Chart.js dashboard. No data leaves this machine.
+  </div>
+</main>
+
+<script>
+(function() {
+  const COLORS = {
+    normal: '#2ecc71',
+    elevated: '#f1c40f',
+    hypertension_stage_1: '#e67e22',
+    hypertension_stage_2: '#e74c3c',
+    hypertensive_crisis: '#8e0000',
+    low: '#3498db',
+    unknown: '#95a5a6'
+  };
+  const LABELS = {
+    normal: 'Normal',
+    elevated: 'Elevated',
+    hypertension_stage_1: 'HTN Stage 1',
+    hypertension_stage_2: 'HTN Stage 2',
+    hypertensive_crisis: 'Crisis',
+    low: 'Low',
+    unknown: 'Unknown'
+  };
+
+  let chartInstance = null;
+  let distInstance = null;
+
+  function esc(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtNum(n, d=1) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Number(n).toFixed(d);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('en-GB', { hour12: false });
+  }
+
+  function mean(arr) {
+    if (!arr.length) return null;
+    return arr.reduce((a,b)=>a+b,0)/arr.length;
+  }
+  function std(arr) {
+    if (arr.length < 2) return 0;
+    const m = mean(arr);
+    return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/(arr.length-1));
+  }
+
+  function parseJSONL(text) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const readings = [];
+    for (const line of lines) {
+      try {
+        const obj = JSON.parse(line);
+        if (obj.event === 'reading_classified') {
+          const r = obj.reading || {};
+          readings.push({
+            timestamp: r.timestamp || obj.reading_ts || obj.timestamp,
+            systolic: Number(r.systolic ?? obj.systolic),
+            diastolic: Number(r.diastolic ?? obj.diastolic),
+            pulse: r.pulse != null ? Number(r.pulse) : (obj.pulse != null ? Number(obj.pulse) : null),
+            notes: r.notes || obj.notes || '',
+            source: r.source || obj.source || 'manual',
+            classification: obj.classification || r.classification || 'unknown',
+            classification_label: (obj.classification && LABELS[obj.classification]) || 'Unknown'
+          });
+        } else if (obj.systolic && obj.diastolic) {
+          readings.push({
+            timestamp: obj.timestamp,
+            systolic: Number(obj.systolic),
+            diastolic: Number(obj.diastolic),
+            pulse: obj.pulse != null ? Number(obj.pulse) : null,
+            notes: obj.notes || '',
+            source: obj.source || 'manual',
+            classification: obj.classification || 'unknown',
+            classification_label: (obj.classification && LABELS[obj.classification]) || 'Unknown'
+          });
+        }
+      } catch(e) { /* skip bad lines */ }
+    }
+    return readings.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+  }
+
+  function computeTrend(readings) {
+    const sys = readings.map(r=>r.systolic);
+    const dia = readings.map(r=>r.diastolic);
+    const pulse = readings.filter(r=>r.pulse!=null).map(r=>r.pulse);
+    const meanSys = mean(sys);
+    const meanDia = mean(dia);
+    const meanPulse = mean(pulse);
+    const stdSys = std(sys);
+    const stdDia = std(dia);
+
+    const morning = readings.filter(r => {
+      const h = new Date(r.timestamp).getUTCHours();
+      return h >= 4 && h < 12;
+    });
+    const evening = readings.filter(r => {
+      const h = new Date(r.timestamp).getUTCHours();
+      return h >= 18 && h < 24;
+    });
+
+    let pattern = 'insufficient_data';
+    const items = [];
+    if (meanSys >= 140) {
+      pattern = 'sustained_hypertension';
+      items.push("Overall mean systolic ≥ 140 mmHg suggests sustained hypertension. Continue monitoring and share with your physician.");
+    } else if (meanSys >= 130) {
+      pattern = 'elevated';
+      items.push("Mean systolic is in the elevated range (130–139). Lifestyle review is warranted.");
+    } else {
+      pattern = 'normal';
+      items.push("Mean systolic is within normal range. Continue routine monitoring.");
+    }
+
+    if (morning.length && evening.length) {
+      const mAvg = mean(morning.map(r=>r.systolic));
+      const eAvg = mean(evening.map(r=>r.systolic));
+      const drop = ((mAvg - eAvg) / mAvg) * 100;
+      if (drop < 10) {
+        pattern += ', non_dipping';
+        items.push(`<span style="color:${COLORS.hypertension_stage_2}">Non-dipping pattern detected</span> — nighttime SBP drop is only ${fmtNum(drop,0)}% (target ≥ 10%). Common causes: sleep disruption, sinusitis-related apnea, irregular medication timing.`);
+      } else {
+        items.push(`Normal dipper — nighttime SBP drops ${fmtNum(drop,0)}%. This is the expected pattern.`);
+      }
+    }
+
+    items.push(`Standard deviation: SBP σ=${fmtNum(stdSys)}, DBP σ=${fmtNum(stdDia)}. Lower σ indicates more stable readings.`);
+
+    return { meanSys, meanDia, meanPulse, stdSys, stdDia, pattern, items, morning, evening };
+  }
+
+  function render(readings) {
+    const tbody = document.getElementById('readings-body');
+    const empty = document.getElementById('empty-msg');
+    const insightsBox = document.getElementById('insights-box');
+    const insightsList = document.getElementById('insights-list');
+    const countEl = document.getElementById('record-count');
+
+    tbody.innerHTML = '';
+    if (!readings.length) {
+      empty.style.display = 'block';
+      insightsBox.style.display = 'none';
+      countEl.textContent = '';
+      return;
+    }
+    empty.style.display = 'none';
+    countEl.textContent = `${readings.length} reading${readings.length===1?'':'s'}`;
+
+    const rows = readings.slice().reverse().slice(0, 200);
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      tr.className = 'reading-row';
+      tr.dataset.cls = r.classification;
+      const color = COLORS[r.classification] || COLORS.unknown;
+      const badge = r.classification_label || 'Unknown';
+      const pulseTd = r.pulse != null ? `<td>${r.pulse}</td>` : '<td>—</td>';
+      const notesTd = r.notes ? `<td class="notes">${esc(r.notes)}</td>` : '';
+      tr.innerHTML = `
+        <td>${esc(fmtDate(r.timestamp))}</td>
+        <td class="sys" style="color:var(--sys);font-weight:600;">${r.systolic}</td>
+        <td class="dia" style="color:var(--dia);font-weight:600;">${r.diastolic}</td>
+        ${pulseTd}
+        <td><span class="cls-badge" style="background:${color}22;color:${color}">${esc(badge)}</span></td>
+        ${notesTd}
+      `;
+      tbody.appendChild(tr);
+    }
+
+    const trend = computeTrend(readings);
+    document.getElementById('mean-sys').textContent = fmtNum(trend.meanSys);
+    document.getElementById('mean-dia').textContent = fmtNum(trend.meanDia);
+    document.getElementById('mean-pulse').textContent = trend.meanPulse != null ? fmtNum(trend.meanPulse) : '—';
+    document.getElementById('std-sd').textContent = `${fmtNum(trend.stdSys)} / ${fmtNum(trend.stdDia)}`;
+    document.getElementById('samples').textContent = readings.length;
+    document.getElementById('pattern').textContent = trend.pattern.replace(/_/g, ' ');
+
+    // Chart
+    const labels = readings.map(r => fmtDate(r.timestamp));
+    const sysData = readings.map(r => r.systolic);
+    const diaData = readings.map(r => r.diastolic);
+
+    const ctx = document.getElementById('trend-chart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Systolic', data: sysData, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,.1)', fill: true, tension: .2, pointRadius: 3, pointBackgroundColor: '#f87171' },
+          { label: 'Diastolic', data: diaData, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.1)', fill: true, tension: .2, pointRadius: 3, pointBackgroundColor: '#34d399' }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#8b8f9a', font: { family: 'ui-monospace', size: 11 } } },
+          tooltip: { backgroundColor: '#161920', titleColor: '#e6e8ee', bodyColor: '#e6e8ee', borderColor: '#252830', borderWidth: 1 }
+        },
+        scales: {
+          x: { ticks: { color: '#8b8f9a', maxTicksLimit: 12, font: { family: 'ui-monospace', size: 10 } }, grid: { color: '#252830' } },
+          y: { ticks: { color: '#8b8f9a', font: { family: 'ui-monospace', size: 10 } }, grid: { color: '#252830' } }
+        }
+      }
+    });
+
+    // Distribution
+    const distCounts = {};
+    for (const r of readings) {
+      const k = r.classification || 'unknown';
+      distCounts[k] = (distCounts[k]||0) + 1;
+    }
+    const distLabels = Object.keys(distCounts).map(k => LABELS[k] || k);
+    const distData = Object.values(distCounts);
+    const distColors = Object.keys(distCounts).map(k => COLORS[k] || COLORS.unknown);
+
+    const dctx = document.getElementById('dist-chart').getContext('2d');
+    if (distInstance) distInstance.destroy();
+    distInstance = new Chart(dctx, {
+      type: 'doughnut',
+      data: {
+        labels: distLabels,
+        datasets: [{ data: distData, backgroundColor: distColors, borderColor: '#161920', borderWidth: 2 }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'right', labels: { color: '#e6e8ee', font: { family: 'ui-monospace', size: 12 }, padding: 12 } },
+          tooltip: { backgroundColor: '#161920', titleColor: '#e6e8ee', bodyColor: '#e6e8ee', borderColor: '#252830', borderWidth: 1 }
+        }
+      }
+    });
+
+    // Insights
+    insightsList.innerHTML = trend.items.map(i => `<li>${i}</li>`).join('');
+    insightsBox.style.display = 'block';
+
+    document.getElementById('generated-at').textContent = `Generated ${new Date().toISOString().slice(0,19).replace('T',' ')} UTC`;
+  }
+
+  function setSource(label) {
+    document.getElementById('data-source').textContent = label;
+  }
+
+  // Try auto-loading relative JSONL (works when served, silently fails when file://)
+  fetch('./bp_agent_log.jsonl').then(r => {
+    if (!r.ok) throw new Error('not found');
+    return r.text();
+  }).then(text => {
+    const data = parseJSONL(text);
+    if (data.length) { setSource(`Auto-loaded ${data.length} readings`); render(data); }
+  }).catch(() => {
+    setSource('No local JSONL detected — load a file or use Demo');
+  });
+
+  document.getElementById('jsonl-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const data = parseJSONL(ev.target.result);
+      if (data.length) { setSource(`Loaded ${data.length} readings from ${esc(file.name)}`); render(data); }
+      else { setSource('No valid readings found in file'); }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('demo-btn').addEventListener('click', () => {
+    const demo = generateDemo();
+    setSource('Demo data');
+    render(demo);
+  });
+
+  function generateDemo() {
+    const rows = [];
+    const base = new Date(Date.now() - 30*24*60*60*1000);
+    let sys = 125, dia = 80;
+    for (let i = 0; i < 45; i++) {
+      const d = new Date(base.getTime() + i*24*60*60*1000);
+      const h = 7 + Math.random()*2;
+      d.setUTCHours(Math.floor(h), Math.floor(Math.random()*60), 0, 0);
+      sys = Math.round(120 + Math.sin(i/5)*8 + (Math.random()-0.5)*10);
+      dia = Math.round(78 + Math.cos(i/4)*6 + (Math.random()-0.5)*8);
+      const pulse = Math.round(68 + Math.random()*12);
+      let cls = 'normal';
+      if (sys >= 140 || dia >= 90) cls = 'hypertension_stage_2';
+      else if (sys >= 130 || dia >= 80) cls = 'hypertension_stage_1';
+      else if (sys >= 120) cls = 'elevated';
+      rows.push({
+        timestamp: d.toISOString(),
+        systolic: sys, diastolic: dia, pulse,
+        notes: i % 5 === 0 ? 'post-exercise' : (i % 7 === 0 ? 'morning reading' : ''),
+        source: 'demo',
+        classification: cls,
+        classification_label: LABELS[cls] || 'Unknown'
+      });
+    }
+    return rows;
+  }
+})();
+</script>
+</body>
+</html>

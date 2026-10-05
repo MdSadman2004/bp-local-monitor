@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 960" width="1600" height="960"><rect width="1600" height="960" fill="#f3eee4"/>
+<text x="64" y="124" font-family="Libre Caslon Display, Georgia, serif" font-size="76" fill="#2c2925">BP Local Monitor</text>
+<text x="64" y="188" font-family="Manrope, sans-serif" font-size="28" fill="#58534b">Manual blood-pressure logging with rule-based labels and local HTML summaries.</text>
+<line x1="64" y1="272" x2="1536" y2="272" stroke="#c9beb0" stroke-width="1"/>
+<text x="64" y="316" font-family="Manrope, sans-serif" font-size="22" fill="#964c36">Health</text>
+<text x="760" y="316" font-family="Manrope, sans-serif" font-size="22" fill="#58534b">Files to start with</text>
+<text x="64" y="392" font-family="Manrope, sans-serif" font-size="32" fill="#2c2925">Reading commands</text>
+<text x="64" y="430" font-family="Manrope, sans-serif" font-size="22" fill="#58534b">Manual CSV logging and local output commands.</text>
+<text x="760" y="385" font-family="Manrope, sans-serif" font-size="20" fill="#58534b">src/bp_monitor/cli.py</text>
+<line x1="64" y1="490" x2="1536" y2="490" stroke="#c9beb0" stroke-width="1"/>
+<text x="64" y="550" font-family="Manrope, sans-serif" font-size="32" fill="#2c2925">Classification rules</text>
+<text x="64" y="588" font-family="Manrope, sans-serif" font-size="22" fill="#58534b">Thresholds, aggregate statistics, and</text>
+<text x="64" y="617" font-family="Manrope, sans-serif" font-size="22" fill="#58534b">heuristics.</text>
+<text x="760" y="543" font-family="Manrope, sans-serif" font-size="20" fill="#58534b">src/bp_monitor/classifier.py</text>
+<line x1="64" y1="648" x2="1536" y2="648" stroke="#c9beb0" stroke-width="1"/>
+<text x="64" y="708" font-family="Manrope, sans-serif" font-size="32" fill="#2c2925">Dashboard generator</text>
+<text x="64" y="746" font-family="Manrope, sans-serif" font-size="22" fill="#58534b">Single-file HTML with embedded chart data.</text>
+<text x="760" y="701" font-family="Manrope, sans-serif" font-size="20" fill="#58534b">src/bp_monitor/dashboard.py</text>
+<line x1="64" y1="806" x2="1536" y2="806" stroke="#c9beb0" stroke-width="1"/>
+<text x="64" y="898" font-family="Manrope, sans-serif" font-size="23" fill="#58534b">Source guide, not a runtime screenshot or a benchmark.</text>
+<text x="64" y="932" font-family="Manrope, sans-serif" font-size="18" fill="#58534b">github.com/MdSadman2004/bp-local-monitor</text>
+</svg>

@@ -1,0 +1,29 @@
+{
+  "kind": "source-guide",
+  "source_head": "b5808db717f32139d610303024cd3177dbc98065",
+  "source_tree": "cb0c31d813a7d5ae266269de75ae0d2265b4a69e",
+  "source_repository": "https://github.com/MdSadman2004/bp-local-monitor",
+  "nodes": [
+    {
+      "label": "Reading commands",
+      "path": "src/bp_monitor/cli.py",
+      "detail": "Manual CSV logging and local output commands."
+    },
+    {
+      "label": "Classification rules",
+      "path": "src/bp_monitor/classifier.py",
+      "detail": "Thresholds, aggregate statistics, and heuristics."
+    },
+    {
+      "label": "Dashboard generator",
+      "path": "src/bp_monitor/dashboard.py",
+      "detail": "Single-file HTML with embedded chart data."
+    }
+  ],
+  "caption": "Source guide drawn from repository files; not a runtime screenshot or fresh benchmark.",
+  "generated_by": "render_guides.py",
+  "image_dimensions": [
+    1600,
+    960
+  ]
+}
